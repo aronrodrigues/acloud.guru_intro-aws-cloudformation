@@ -1,0 +1,9 @@
+Resources:
+  MyInstance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-467ca739 # Amazon Linux AMI
+      Tags:
+        - Key: author
+          Value: !Join [" ", [AronRodrigues, aronrodrigues@gmail.com]]
