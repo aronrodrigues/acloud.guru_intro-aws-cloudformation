@@ -1,0 +1,87 @@
+Parameters:
+  NameOfService:
+    Description: "The name of the service this stack is to be used for."
+    Type: String
+  KeyName:
+    Description: "Name of existing EC2 KeyPar to enable SSH access into the server"
+    Type: AWS::EC2::KeyPair::KeyName
+  VpcId:
+    Description: "Id of the VPC"
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Description: "Subnet Id"
+    Type: AWS::EC2::Subnet::Id
+Outputs:
+  WebsiteURL:
+    Description: Website URL for EC2 Instance
+    Value: !Sub 'http://${MyInstance.PublicDnsName}'
+  ServerDNS:
+    Value: !GetAtt
+      - MyInstance
+      - PublicDnsName
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-1853ac65
+    us-west-1:
+      AMI: ami-bf5540df
+    eu-west-1:
+      AMI: ami-3bfab942
+Resources:
+  MyInstance:
+    Type: "AWS::EC2::Instance"
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              httpd: []
+              php: []
+          files:
+            /var/www/html/index.php:
+              content: !Sub |
+                <?php print "Hello Aron!" ?>
+          services:
+            sysvinit:
+              httpd:
+                enabled: true
+                ensureRunning: true
+    Properties:
+      InstanceType: t2.micro
+      ImageId: # ami-467ca739 # Amazon Linux AMI
+        Fn::FindInMap:
+        - RegionMap
+        - !Ref AWS::Region
+        - AMI
+      Tags:
+        - Key: author
+          Value: !Join [" ", [AronRodrigues, aronrodrigues@gmail.com]]
+        - Key: description
+          Value: !Join
+            - ""
+            - - "EC2 Instance for "
+              - !Ref AWS::Region
+        - Key: name
+          Value: !Ref NameOfService
+      KeyName: !Ref KeyName
+      SubnetId: !Ref SubnetId
+      # SecurityGroups:
+      #  - !Ref MySecurityGroup
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash -xe
+            # Ensure AWS CFN Bootstrap is the latest
+            yum install -y aws-cfn-bootstrap
+            # Install the files and packages from the metadata
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource MyInstance --region ${AWS::Region}
+  MySecurityGroup:
+    Type: "AWS::EC2::SecurityGroup" 
+    Properties:
+      GroupDescription: "Enable HTTP on 80"
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: "80"
+          ToPort: "80"
+          CidrIp: "0.0.0.0/0" 
